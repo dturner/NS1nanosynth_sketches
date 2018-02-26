@@ -31,6 +31,14 @@ DAC_MCP49xx dac(DAC_MCP49xx::MCP4922, 4, -1);   //NS1nanosynth has DAC SS on pin
 #define TRIGGER_PIN 5 // default GATE pin on NS1nanosynth.
 #define NOTES_BUFFER 127
 
+// Define the CC numbers used to control the digipots
+// dturner - I have modified these to match rotary controls 1-4 on a Novation LaunchKey 49
+#define MIDI_CC_NUMBER_FOR_DIGIPOT_A 21
+#define MIDI_CC_NUMBER_FOR_DIGIPOT_B 22
+#define MIDI_CC_NUMBER_FOR_DIGIPOT_C 23
+#define MIDI_CC_NUMBER_FOR_DIGIPOT_D 24
+
+
 const byte NOTEON = 0x09;
 const byte NOTEOFF = 0x08;
 const byte CC = 0x0B;
@@ -146,19 +154,19 @@ void updateNS1(){
       }
 
       //set digipots A to D with CC from 30 to 33
-      if (e.type == CC && e.m2 == 30){
+      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_A){
         ccpot0_ready=1;
         pot0=e.m3<<1;
       }
-      if (e.type == CC && e.m2 == 31){
+      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_B){
         ccpot1_ready=1;
         pot1=e.m3<<1;
       }
-      if (e.type == CC && e.m2 == 32){
+      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_C){
         ccpot2_ready=1;
         pot2=e.m3<<1;
       }
-      if (e.type == CC && e.m2 == 33){
+      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_D){
         ccpot3_ready=1;
         pot3=e.m3<<1;
       }
