@@ -94,7 +94,7 @@ void setup(){
   Wire.begin();
 
   // Set a timer to call updateNS1() every X us
-  Timer1.initialize(8000);          
+  Timer1.initialize(1000);          
   Timer1.attachInterrupt(updateNS1); 
 }
 
@@ -177,7 +177,6 @@ void updateNS1(){
       pot3=e.m3<<1;
     }
 
-    
     // set pitch bend
     if (e.type == PB){
      if(e.m1 == (0xE0 + MIDI_CHANNEL)){
@@ -234,6 +233,11 @@ void updateNS1(){
     if (currentNote>0){
     }
   }
+
+  if (currentNote > 0) {
+    // Switch off the trigger
+    analogWrite(TRIGGER_PIN, 0);
+  }
 }
 
 void loop(){
@@ -263,29 +267,25 @@ void playNote(byte noteVal, float myMod) {
     analogVal=255; 
   }
   
-  if (myMod != 0)
-  {
+  if (myMod != 0) {
     //analogVal=myMod+int(1.0*analogVal+(1.0*myMod*(mod/127)/40));
   }
   //  DacOutB=DacOutB+myMod;  //attenzione!! non volendo suono MOLTO PARTRICOLARE su dacB !!!!!
   // see if this note needs pitch bend
-    if (bend != 0)
-    {
-    analogVal=analogVal+bend;
-    }
+  if (bend != 0) { analogVal=analogVal+bend; }
+  
 //  analogWrite(NOTE_PIN1, analogVal);
-      int DacOutA=DacVal[noteVal-MIN_NOTE];
-      if (bend != 0)
-      {
-       DacOutA=DacOutA+bend;
-      }
-      dac.outputA(DacOutA);
-      analogWrite(GATE_PIN, 255); //GATE ON
-      
-      //add here tone update !!!!!!!!!!!!!!!!!!!
-      //
-      //
-      //
+  int DacOutA=DacVal[noteVal-MIN_NOTE];
+  if (bend != 0) { DacOutA=DacOutA+bend; }
+  dac.outputA(DacOutA);
+  analogWrite(GATE_PIN, 255); //GATE ON
+  analogWrite(TRIGGER_PIN, 255); // TRIGGER ON
+
+  
+  //add here tone update !!!!!!!!!!!!!!!!!!!
+  //
+  //
+  //
       
 } // end playNote
 
