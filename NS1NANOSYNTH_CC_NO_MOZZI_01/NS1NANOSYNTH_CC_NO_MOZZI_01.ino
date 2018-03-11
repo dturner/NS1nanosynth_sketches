@@ -29,6 +29,7 @@ DAC_MCP49xx dac(DAC_MCP49xx::MCP4922, 4, -1);   //NS1nanosynth has DAC SS on pin
 #define MIN_NOTE 36
 #define MAX_NOTE MIN_NOTE+61
 #define GATE_PIN 5 // default GATE pin on NS1nanosynth.
+#define TRIGGER_PIN 6
 #define NOTES_BUFFER 127
 
 // Define the CC numbers used to control the digipots
@@ -63,7 +64,9 @@ int mod=0;
 float currentMod=0;
 int bend=0;
 
-int DacVal[] = {0, 68, 137, 205, 273, 341, 410, 478, 546, 614, 683, 751, 819, 887, 956, 1024, 1092, 1160, 1229, 1297, 1365, 1433, 1502, 1570, 1638, 1706, 1775, 1843, 1911, 1979, 2048, 2116, 2184, 2252, 2321, 2389, 2457, 2525, 2594, 2662, 2730, 2798, 2867, 2935, 3003, 3071, 3140, 3208, 3276, 3344, 3413, 3481, 3549, 3617, 3686, 3754, 3822, 3890, 3959, 4027, 4095};
+int DacVal[] = {0, 68, 137, 205, 273, 341, 410, 478, 546, 614, 683, 751, 819, 887, 956, 1024, 1092, 1160, 1229, 1297, 1365, 
+1433, 1502, 1570, 1638, 1706, 1775, 1843, 1911, 1979, 2048, 2116, 2184, 2252, 2321, 2389, 2457, 2525, 2594, 2662, 2730, 2798,
+2867, 2935, 3003, 3071, 3140, 3208, 3276, 3344, 3413, 3481, 3549, 3617, 3686, 3754, 3822, 3890, 3959, 4027, 4095};
 
 byte addresses[4] = { 0x00, 0x10, 0x60, 0x70 }; //digipot address
 byte digipot_addr= 0x2C;  //i2c bus digipot IC addr
@@ -85,11 +88,14 @@ unsigned short DacOutB=0;
 void setup(){
   pinMode( GATE_PIN, OUTPUT ); // set GATE pin to output mode
   analogWrite( GATE_PIN, 0);  //GATE down
+  pinMode( TRIGGER_PIN, OUTPUT); // set TRIGGER pin to output mode
+  analogWrite( TRIGGER_PIN, 0); // TRIGGER down
   dac.setGain(2);
   Wire.begin();
-  Timer1.initialize(8000);          //check MIDI packets each XXX ms
-  Timer1.attachInterrupt(updateNS1); // blinkLED to run every 0.15 seconds  
 
+  // Set a timer to call updateNS1() every X us
+  Timer1.initialize(8000);          
+  Timer1.attachInterrupt(updateNS1); 
 }
 
 void i2c_send(byte addr, byte a, byte b)      //wrapper for I2C routines
@@ -105,95 +111,95 @@ void i2c_send(byte addr, byte a, byte b)      //wrapper for I2C routines
 
 void DigipotWrite(byte pot,byte val)        //write a value on one of the four digipots in the IC
 {
-          i2c_send( digipot_addr, 0x40, 0xff );
-          i2c_send( digipot_addr, 0xA0, 0xff );
-          i2c_send( digipot_addr, addresses[pot], val);  
+  i2c_send( digipot_addr, 0x40, 0xff );
+  i2c_send( digipot_addr, 0xA0, 0xff );
+  i2c_send( digipot_addr, addresses[pot], val);  
 }
 
 void updateNS1(){
   while(MIDIUSB.available() > 0) { 
-      // Repeat while notes are available to read.
-      MIDIEvent e;
-      e = MIDIUSB.read();
-      if(e.type == NOTEON) {
-        if(e.m1 == (0x90 + MIDI_CHANNEL)){
-          if(e.m2 >= MIN_NOTE && e.m2 <= MAX_NOTE){
-            if(e.m3==0)         //Note in the right range, if velocity=0, remove note
-              removeNote(e.m2);
-            else                //Note in right range and velocity>0, add note
-              addNote(e.m2);              
-          } else if (e.m2 < MIN_NOTE) {
-            //out of lower range hook      
-          } else if (e.m2 > MAX_NOTE) {
-            //out of upper range hook
-          }
+    // Repeat while notes are available to read.
+    MIDIEvent e;
+    e = MIDIUSB.read();
+    if(e.type == NOTEON) {
+      if(e.m1 == (0x90 + MIDI_CHANNEL)){
+        if(e.m2 >= MIN_NOTE && e.m2 <= MAX_NOTE){
+          if(e.m3==0)         //Note in the right range, if velocity=0, remove note
+            removeNote(e.m2);
+          else                //Note in right range and velocity>0, add note
+            addNote(e.m2);              
+        } else if (e.m2 < MIN_NOTE) {
+          //out of lower range hook      
+        } else if (e.m2 > MAX_NOTE) {
+          //out of upper range hook
         }
       }
-      
-      if(e.type == NOTEOFF) {
-        if(e.m1 == 0x80 + MIDI_CHANNEL){
-          removeNote(e.m2);
-        }
+    }
+    
+    if(e.type == NOTEOFF) {
+      if(e.m1 == 0x80 + MIDI_CHANNEL){
+        removeNote(e.m2);
       }
-      
-      // set modulation wheel
-      if (e.type == CC && e.m2 == 1)
+    }
+    
+    // set modulation wheel
+    if (e.type == CC && e.m2 == 1)
+    {
+      if (e.m3 <= 3)
       {
-        if (e.m3 <= 3)
-        {
-          // set mod to zero
-         mod=0;
-         dac.outputB(0);
-        } 
-        else 
-        {
-          mod=e.m3;
-          DacOutB=mod*32;
-          dac.outputB(DacOutB);
+        // set mod to zero
+       mod=0;
+       dac.outputB(0);
+      } 
+      else 
+      {
+        mod=e.m3;
+        DacOutB=mod*32;
+        dac.outputB(DacOutB);
+      }
+    }
+
+    //set digipots A to D with CC from 30 to 33
+    if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_A){
+      ccpot0_ready=1;
+      pot0=e.m3<<1;
+    }
+    if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_B){
+      ccpot1_ready=1;
+      pot1=e.m3<<1;
+    }
+    if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_C){
+      ccpot2_ready=1;
+      pot2=e.m3<<1;
+    }
+    if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_D){
+      ccpot3_ready=1;
+      pot3=e.m3<<1;
+    }
+
+    
+    // set pitch bend
+    if (e.type == PB){
+     if(e.m1 == (0xE0 + MIDI_CHANNEL)){
+        // map bend somewhere between -127 and 127, depending on pitch wheel
+        // allow for a slight amount of slack in the middle (63-65)
+        // with the following mapping pitch bend is +/- two semitones
+        if (e.m3 > 65){
+          bend=map(e.m3, 64, 127, 0, 136);
+        } else if (e.m3 < 63){
+          bend=map(e.m3, 0, 64, -136, 0);
+        } else {
+          bend=0;
+        }
+        
+        if (currentNote>0){
+          playNote (currentNote, 0);
         }
       }
-
-      //set digipots A to D with CC from 30 to 33
-      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_A){
-        ccpot0_ready=1;
-        pot0=e.m3<<1;
-      }
-      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_B){
-        ccpot1_ready=1;
-        pot1=e.m3<<1;
-      }
-      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_C){
-        ccpot2_ready=1;
-        pot2=e.m3<<1;
-      }
-      if (e.type == CC && e.m2 == MIDI_CC_NUMBER_FOR_DIGIPOT_D){
-        ccpot3_ready=1;
-        pot3=e.m3<<1;
-      }
-
+    }
       
-      // set pitch bend
-      if (e.type == PB){
-       if(e.m1 == (0xE0 + MIDI_CHANNEL)){
-          // map bend somewhere between -127 and 127, depending on pitch wheel
-          // allow for a slight amount of slack in the middle (63-65)
-          // with the following mapping pitch bend is +/- two semitones
-          if (e.m3 > 65){
-            bend=map(e.m3, 64, 127, 0, 136);
-          } else if (e.m3 < 63){
-            bend=map(e.m3, 0, 64, -136, 0);
-          } else {
-            bend=0;
-          }
-          
-          if (currentNote>0){
-            playNote (currentNote, 0);
-          }
-        }
-      }
-      
-      MIDIUSB.flush();
-   }
+    MIDIUSB.flush();
+  } // end while
    
   if (noteNeeded>0){
     // on our way to another note
@@ -230,41 +236,38 @@ void updateNS1(){
   }
 }
 
- void loop(){
+void loop(){
   //it is necessary to move the i2c routines out of the callback. probably due to some interrupt handling!
- if(ccpot0_ready){
+  if(ccpot0_ready){
     DigipotWrite(0,pot0);
     ccpot0_ready=0;
-    }
- if(ccpot1_ready){
+  }
+  if(ccpot1_ready){
     DigipotWrite(1,pot1);
     ccpot1_ready=0;
-    }
- if(ccpot2_ready){
+  } 
+  if(ccpot2_ready){
     DigipotWrite(2,pot2);
     ccpot2_ready=0;
-    }
- if(ccpot3_ready){
+  }
+  
+  if(ccpot3_ready){
     DigipotWrite(3,pot3);
     ccpot3_ready=0;
-    }
- }
-
-
-
-void playNote(byte noteVal, float myMod)
-  {
-
-    analogVal = map(noteVal, MIN_NOTE, MAX_NOTE, 0, 2550)/10;  //  analogVal = map(noteVal, MIN_NOTE, MAX_NOTE, 0, 2550+oscAdjust)/10;
-  if (analogVal > 255)
-  {
-  analogVal=255;
   }
+}
+
+void playNote(byte noteVal, float myMod) {
+  analogVal = map(noteVal, MIN_NOTE, MAX_NOTE, 0, 2550)/10;  //  analogVal = map(noteVal, MIN_NOTE, MAX_NOTE, 0, 2550+oscAdjust)/10;
+  if (analogVal > 255) {
+    analogVal=255; 
+  }
+  
   if (myMod != 0)
   {
     //analogVal=myMod+int(1.0*analogVal+(1.0*myMod*(mod/127)/40));
   }
-//  DacOutB=DacOutB+myMod;  //attenzione!! non volendo suono MOLTO PARTRICOLARE su dacB !!!!!
+  //  DacOutB=DacOutB+myMod;  //attenzione!! non volendo suono MOLTO PARTRICOLARE su dacB !!!!!
   // see if this note needs pitch bend
     if (bend != 0)
     {
@@ -284,7 +287,7 @@ void playNote(byte noteVal, float myMod)
       //
       //
       
-}
+} // end playNote
 
 void addNote(byte note){
   boolean found=false;
@@ -318,7 +321,7 @@ void addNote(byte note){
   }
   
   noteNeeded=note;
-}
+} // end addNote
 
 void removeNote(byte note){
   boolean complete=false;
@@ -379,6 +382,4 @@ void removeNote(byte note){
       }
     }
   }
-}
-
-
+} // end removeNote
