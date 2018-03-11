@@ -28,7 +28,7 @@ DAC_MCP49xx dac(DAC_MCP49xx::MCP4922, 4, -1);   //NS1nanosynth has DAC SS on pin
 
 #define MIN_NOTE 36
 #define MAX_NOTE MIN_NOTE+61
-#define TRIGGER_PIN 5 // default GATE pin on NS1nanosynth.
+#define GATE_PIN 5 // default GATE pin on NS1nanosynth.
 #define NOTES_BUFFER 127
 
 // Define the CC numbers used to control the digipots
@@ -83,8 +83,8 @@ unsigned short DacOutB=0;
 
 
 void setup(){
-  pinMode( TRIGGER_PIN, OUTPUT ); // set GATE pin to output mode
-  analogWrite( TRIGGER_PIN, 0);  //GATE down
+  pinMode( GATE_PIN, OUTPUT ); // set GATE pin to output mode
+  analogWrite( GATE_PIN, 0);  //GATE down
   dac.setGain(2);
   Wire.begin();
   Timer1.initialize(8000);          //check MIDI packets each XXX ms
@@ -277,7 +277,7 @@ void playNote(byte noteVal, float myMod)
        DacOutA=DacOutA+bend;
       }
       dac.outputA(DacOutA);
-      analogWrite(TRIGGER_PIN, 255); //GATE ON
+      analogWrite(GATE_PIN, 255); //GATE ON
       
       //add here tone update !!!!!!!!!!!!!!!!!!!
       //
@@ -331,7 +331,7 @@ void removeNote(byte note){
     currentNote=0;
     
     // turn light off
-    analogWrite(TRIGGER_PIN, 0);
+    analogWrite(GATE_PIN, 0);
  
   } else {
     // a note was just released, but it was one of many
