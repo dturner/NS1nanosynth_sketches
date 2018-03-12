@@ -39,11 +39,12 @@ DAC_MCP49xx dac(DAC_MCP49xx::MCP4922, 4, -1);   //NS1nanosynth has DAC SS on pin
 #define MIDI_CC_NUMBER_FOR_DIGIPOT_C 23
 #define MIDI_CC_NUMBER_FOR_DIGIPOT_D 24
 
-
 const byte NOTEON = 0x09;
 const byte NOTEOFF = 0x08;
 const byte CC = 0x0B;
 const byte PB = 0x0E;
+
+const int kTriggerDurationMillis = 1; 
 
 //////////////////////////////////////////////////////////////
 // start of variables that you are likely to want to change
@@ -64,7 +65,8 @@ int mod=0;
 float currentMod=0;
 int bend=0;
 bool isTriggerOn = false;
-int triggerOffTime = 0; 
+int triggerOffTime = 0;
+
 
 int DacVal[] = {0, 68, 137, 205, 273, 341, 410, 478, 546, 614, 683, 751, 819, 887, 956, 1024, 1092, 1160, 1229, 1297, 1365, 
 1433, 1502, 1570, 1638, 1706, 1775, 1843, 1911, 1979, 2048, 2116, 2184, 2252, 2321, 2389, 2457, 2525, 2594, 2662, 2730, 2798,
@@ -235,11 +237,6 @@ void updateNS1(){
 
   if (isTriggerOn && triggerOffTime < currentTime){
     isTriggerOn = false;
-    Serial.print("OFF TIME: ");
-    Serial.println(triggerOffTime);
-    Serial.print("CURRENT: ");
-    Serial.println(currentTime);
-    Serial.println("OFF");
     analogWrite(TRIGGER_PIN, 0);
   }
 } // end updateNS1
@@ -281,11 +278,7 @@ void playNote(byte noteVal, float myMod) {
   
   analogWrite(TRIGGER_PIN, 255); // TRIGGER ON
   isTriggerOn = true;
-  triggerOffTime = millis() + 100;
-  Serial.println(triggerOffTime);
-
-
-  
+  triggerOffTime = millis() + kTriggerDurationMillis;
 } // end playNote
 
 void addNote(byte note){
