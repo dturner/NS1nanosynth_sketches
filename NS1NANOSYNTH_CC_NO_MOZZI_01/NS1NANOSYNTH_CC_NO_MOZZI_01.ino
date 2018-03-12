@@ -63,6 +63,8 @@ float glide=0;
 int mod=0;
 float currentMod=0;
 int bend=0;
+bool isTriggerOn = false;
+int triggerOffTime = 0; 
 
 int DacVal[] = {0, 68, 137, 205, 273, 341, 410, 478, 546, 614, 683, 751, 819, 887, 956, 1024, 1092, 1160, 1229, 1297, 1365, 
 1433, 1502, 1570, 1638, 1706, 1775, 1843, 1911, 1979, 2048, 2116, 2184, 2252, 2321, 2389, 2457, 2525, 2594, 2662, 2730, 2798,
@@ -80,10 +82,8 @@ byte pot1=0;
 byte pot2=0;
 byte pot3=0;
 
-
 unsigned short DacOutA=0;
 unsigned short DacOutB=0;
-
 
 void setup(){
   pinMode( GATE_PIN, OUTPUT ); // set GATE pin to output mode
@@ -104,9 +104,6 @@ void i2c_send(byte addr, byte a, byte b)      //wrapper for I2C routines
     Wire.write(a);
     Wire.write(b);
     Wire.endTransmission();
-//    Wire.send(address);             // send register address
-//    Wire.send(val);                 // send value to write
-//    Wire.endTransmission();         // end transmission
 }
 
 void DigipotWrite(byte pot,byte val)        //write a value on one of the four digipots in the IC
@@ -234,11 +231,18 @@ void updateNS1(){
     }
   }
 
-  if (currentNote > 0) {
-    // Switch off the trigger
+  int currentTime = millis();
+
+  if (isTriggerOn && triggerOffTime < currentTime){
+    isTriggerOn = false;
+    Serial.print("OFF TIME: ");
+    Serial.println(triggerOffTime);
+    Serial.print("CURRENT: ");
+    Serial.println(currentTime);
+    Serial.println("OFF");
     analogWrite(TRIGGER_PIN, 0);
   }
-}
+} // end updateNS1
 
 void loop(){
   //it is necessary to move the i2c routines out of the callback. probably due to some interrupt handling!
@@ -259,7 +263,7 @@ void loop(){
     DigipotWrite(3,pot3);
     ccpot3_ready=0;
   }
-}
+} // end loop
 
 void playNote(byte noteVal, float myMod) {
   analogVal = map(noteVal, MIN_NOTE, MAX_NOTE, 0, 2550)/10;  //  analogVal = map(noteVal, MIN_NOTE, MAX_NOTE, 0, 2550+oscAdjust)/10;
@@ -267,26 +271,21 @@ void playNote(byte noteVal, float myMod) {
     analogVal=255; 
   }
   
-  if (myMod != 0) {
-    //analogVal=myMod+int(1.0*analogVal+(1.0*myMod*(mod/127)/40));
-  }
-  //  DacOutB=DacOutB+myMod;  //attenzione!! non volendo suono MOLTO PARTRICOLARE su dacB !!!!!
   // see if this note needs pitch bend
   if (bend != 0) { analogVal=analogVal+bend; }
-  
-//  analogWrite(NOTE_PIN1, analogVal);
+
   int DacOutA=DacVal[noteVal-MIN_NOTE];
   if (bend != 0) { DacOutA=DacOutA+bend; }
   dac.outputA(DacOutA);
   analogWrite(GATE_PIN, 255); //GATE ON
+  
   analogWrite(TRIGGER_PIN, 255); // TRIGGER ON
+  isTriggerOn = true;
+  triggerOffTime = millis() + 100;
+  Serial.println(triggerOffTime);
+
 
   
-  //add here tone update !!!!!!!!!!!!!!!!!!!
-  //
-  //
-  //
-      
 } // end playNote
 
 void addNote(byte note){
@@ -329,7 +328,6 @@ void removeNote(byte note){
   // handle most likely scenario
   if (notePointer==1 && notes[1]==note){
     // only one note played, and it was this note
-    //analogWrite(NOTE_PIN1, 0);
     notePointer=0;
     currentNote=0;
     
